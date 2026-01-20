@@ -49,6 +49,7 @@ class BaseTradingStrategy(ABC):
         
         for i in range(len(df)):
             current_price = df.loc[i, 'close']
+            current_date = df.loc[i, 'date']
             signal = df.loc[i, 'signal']
             
             # 买入信号且当前没有持仓
@@ -62,14 +63,20 @@ class BaseTradingStrategy(ABC):
                     cash -= shares_to_buy * current_price
                     df.loc[i, 'action'] = 'BUY'
                     df.loc[i, 'entry_price'] = entry_price
+                    print(f"{current_date.date()}: 买入 {shares_to_buy}股 @ {current_price:.2f}")
             
             # 卖出信号且当前持有仓位
             elif signal == -1 and position == 1:
                 if shares_held > 0:
                     cash += shares_held * current_price
+                    profit = (current_price - entry_price) * shares_held
+                    profit_pct = (current_price / entry_price - 1) * 100
                     df.loc[i, 'action'] = 'SELL'
                     position = 0
+                    print(f"{current_date.date()}: 卖出 {shares_held}股 @ {current_price:.2f}, "
+                      f"盈利: ${profit:.2f} ({profit_pct:.2f}%)")
                     shares_held = 0
+                    
             
             # 更新持仓信息
             df.loc[i, 'position'] = position

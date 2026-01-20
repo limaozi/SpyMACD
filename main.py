@@ -7,10 +7,18 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # 导入自定义模块
+
 from strategy import StrategyFactory
+from strategy.base_strategy import BaseTradingStrategy
 from utils.data_loader import DataLoader
 from utils.performance_analyzer import PerformanceAnalyzer
 import config
+import os
+import sys
+
+# 在 Python 代码开始处添加
+if sys.platform == 'win32':
+    os.system('chcp 65001')  # 切换到 UTF-8 编码
 
 def generate_signals(strategy_name, df, strategy_params=None):
     """
@@ -133,7 +141,17 @@ def visualize_comparison(results):
         df = result['dataframe']
         ax1.plot(df['date'], df['portfolio_value'], 
                 label=f"{strategy_name.upper()}", linewidth=2)
+        # 标记买入点
+        buy_points = df[df['action'] == 'BUY']
+        if not buy_points.empty:
+            ax1.scatter(buy_points['date'], buy_points['portfolio_value'], 
+                   color='green', marker='^', s=100, label='买入', zorder=5)
     
+        # 标记卖出点
+        sell_points = df[df['action'] == 'SELL']
+        if not sell_points.empty:
+            ax1.scatter(sell_points['date'], sell_points['portfolio_value'], 
+                   color='red', marker='v', s=100, label='卖出', zorder=5)
     ax1.set_title('策略组合价值对比')
     ax1.set_ylabel('组合价值 ($)')
     ax1.legend()
@@ -141,13 +159,24 @@ def visualize_comparison(results):
     
     # 子图2：买入持有对比
     ax2 = axes[0, 1]
+    df = result['dataframe']
+    if 'close' in df.columns:
+        buy_hold = df['close'] / df['close'].iloc[0] * config.TRADING_CONFIG['initial_capital']
+        ax2.plot(df['date'], buy_hold, '--', label=f"买入持有", alpha=0.7)
     for strategy_name, result in results.items():
         df = result['dataframe']
-        if 'close' in df.columns:
-            buy_hold = df['close'] / df['close'].iloc[0] * config.TRADING_CONFIG['initial_capital']
-            ax2.plot(df['date'], buy_hold, '--', label=f"{strategy_name} - 买入持有", alpha=0.7)
-            ax2.plot(df['date'], df['portfolio_value'], '-', label=f"{strategy_name} - 策略", linewidth=2)
+        ax2.plot(df['date'], df['portfolio_value'], '-', label=f"{strategy_name} - 策略", linewidth=2)
+        # 标记买入点
+        buy_points = df[df['action'] == 'BUY']
+        if not buy_points.empty:
+            ax2.scatter(buy_points['date'], buy_points['portfolio_value'], 
+                   color='green', marker='^', s=100, label='买入', zorder=5)
     
+        # 标记卖出点
+        sell_points = df[df['action'] == 'SELL']
+        if not sell_points.empty:
+            ax2.scatter(sell_points['date'], sell_points['portfolio_value'], 
+                   color='red', marker='v', s=100, label='卖出', zorder=5)
     ax2.set_title('策略 vs 买入持有')
     ax2.set_ylabel('价值 ($)')
     ax2.legend()
@@ -182,7 +211,8 @@ def visualize_comparison(results):
     ax4.set_ylabel('累计收益率 (%)')
     ax4.legend()
     ax4.grid(True, alpha=0.3)
-    
+    plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+    plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
     plt.tight_layout()
     plt.savefig('results/strategy_comparison.png', dpi=300, bbox_inches='tight')
     plt.show()
